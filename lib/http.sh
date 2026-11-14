@@ -35,25 +35,21 @@ build_url() {
     # ---------------
     # PRE-CONDITIONS
     # ---------------
-    # - base_url must be non-empty
-    assert_nonempty base_url
-    # - base_url must be whitespace-free, and contain a valid host segment
-    #   with an optional http:// or https:// scheme (rejects "", "http://", "https://", "/")
-    assert_true "base_url must not contain whitespace" test -z "${base_url//[^[:space:]]/}"
-    assert_true "base_url must be a valid host with optional http(s):// scheme" \
+    # base_url must be 
+    # - non-empty, 
+    # - whitespace-free, and 
+    # - contain a valid host segment with an optional http:// or https:// scheme 
+    #   (so it rejects "", "http://", "https://", "/")
+    assert_true "base_url must be a valid host with optional http(s):// scheme and no whitespace" \
         bash -c '
             url="$1"
             if [[ "$url" =~ ^https?:// ]]; then
-                # Explicit scheme present: require at least one non-slash host character
-                # after "http://" or "https://" (rejects bare "http://" and "https://")
                 [[ "$url" =~ ^https?://[^/[:space:]]+(/[^[:space:]]*)?$ ]]
             else
-                # No explicit scheme: require a host without ":" or "/" (so "https://"
-                # cannot backtrack and masquerade as host="https:" + path="/"), while
-                # still allowing an optional numeric port (e.g., ":8080") and base path
                 [[ "$url" =~ ^[^/:[:space:]]+(:[0-9]+)?(/[^[:space:]]*)?$ ]]
             fi
         ' _ "$base_url"
+
     # - endpoint may be empty, but must not contain whitespace
     assert_true "endpoint must not contain whitespace" test -z "${endpoint//[^[:space:]]/}"
 
