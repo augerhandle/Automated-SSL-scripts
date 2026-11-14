@@ -56,6 +56,14 @@ echo "[TEST] Scheme Handling: Explicit http:// scheme is preserved"
 RESULT=$(build_url "http://localhost:8080" "/v1/users")
 assert_test_equals "http://localhost:8080/v1/users" "$RESULT"
 
+echo "[TEST] Scheme Handling: Missing scheme with port prepends https://"
+RESULT=$(build_url "cpanel.example.com:2083" "/execute/Email/list_pops")
+assert_test_equals "https://cpanel.example.com:2083/execute/Email/list_pops" "$RESULT"
+
+echo "[TEST] Scheme Handling: Missing scheme with port and base path"
+RESULT=$(build_url "cpanel.example.com:2083/cpsess123" "/execute/Email/list_pops")
+assert_test_equals "https://cpanel.example.com:2083/cpsess123/execute/Email/list_pops" "$RESULT"
+
 # 3. Corner Conditions
 echo "[TEST] Corner Condition: Empty endpoint"
 RESULT=$(build_url "https://api.example.com" "")
@@ -123,6 +131,27 @@ fi
 echo "[TEST] Pre-condition: Slash-only base_url without host (Failure case expected)"
 if ( build_url "/" "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected slash-only base_url)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+echo "[TEST] Pre-condition: Unsupported scheme like ftp:// (Failure case expected)"
+if ( build_url "ftp://api.example.com" "/v1/users" > /dev/null 2>&1 ); then
+    test_fail "Unexpected Success (Test Failed: Should have rejected ftp:// scheme)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+echo "[TEST] Pre-condition: Malformed single-slash scheme https:/ (Failure case expected)"
+if ( build_url "https:/api.example.com" "/v1/users" > /dev/null 2>&1 ); then
+    test_fail "Unexpected Success (Test Failed: Should have rejected https:/ typo)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+echo "[TEST] Pre-condition: Non-numeric port in schemeless base_url (Failure case expected)"
+if ( build_url "api.example.com:abc" "/v1/users" > /dev/null 2>&1 ); then
+    test_fail "Unexpected Success (Test Failed: Should have rejected non-numeric port)"
 else
     test_pass "Failure caught successfully."
 fi
