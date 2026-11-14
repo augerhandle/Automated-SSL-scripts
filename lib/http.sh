@@ -17,6 +17,7 @@ _DAH_HTTP_SH_LIB_DIR="${_DAH_HTTP_SH_SCRIPT_DIR}"
 # Source dependencies
 source "${_DAH_HTTP_SH_LIB_DIR}/logging.sh"
 source "${_DAH_HTTP_SH_LIB_DIR}/assert.sh"
+source "${_DAH_HTTP_SH_LIB_DIR}/serialize.sh"
 
 # ==============================================================================
 # SUB-FUNCTIONS (Modular & Unit-Testable without network)
@@ -90,12 +91,12 @@ build_url() {
 }
 
 # ------------------------------------------------------------------------------
-# Formats "Name: Value" header arguments into shell-quoted curl -H flags.
+# Formats "Name: Value" header arguments into serialized curl -H flags.
 #
 # Arguments:
 #   $@ - One or more HTTP header strings in "Name: Value" format
 # Outputs:
-#   Writes shell-quoted "-H <header>" arguments to stdout (safe for eval).
+#   Writes serialized "-H <header>" arguments to stdout (safe for deserialize_args).
 # Example:
 #   build_curl_headers "Accept: application/json" "Authorization: cpanel user:token"
 #   # => -H Accept:\ application/json -H Authorization:\ cpanel\ user:token
@@ -129,21 +130,16 @@ build_curl_headers() {
         curl_header_args+=("-H" "${header}")
     done
 
-    local serialized_args
-    serialized_args=$(printf '%q ' "${curl_header_args[@]}")
-    log_verbose_vars serialized_args
-
-    # Print the array elements quoted so the caller can eval/read them back
-    printf '%s' "${serialized_args}"
+    serialize_args "${curl_header_args[@]}"
 }
 
 # ------------------------------------------------------------------------------
-# Formats "key=value" parameter arguments into shell-quoted curl --data-urlencode flags.
+# Formats "key=value" parameter arguments into serialized curl --data-urlencode flags.
 #
 # Arguments:
 #   $@ - One or more parameter strings in "key=value" format
 # Outputs:
-#   Writes shell-quoted "--data-urlencode <param>" arguments to stdout (safe for eval).
+#   Writes serialized "--data-urlencode <param>" arguments to stdout (safe for deserialize_args).
 # Example:
 #   build_curl_params "domain=example.com" "email=admin@example.com"
 #   # => --data-urlencode domain=example.com --data-urlencode email=admin@example.com
@@ -177,17 +173,7 @@ build_curl_params() {
         curl_param_args+=("--data-urlencode" "${param}")
     done
 
-    local serialized_args
-    serialized_args=$(printf '%q ' "${curl_param_args[@]}")
-    log_verbose_vars serialized_args
-
-    # ---------------
-    # POST-CONDITIONS
-    # ---------------
-    assert_nonempty serialized_args
-
-    # Print the array elements quoted so the caller can eval/read them back
-    printf '%s' "${serialized_args}"
+    serialize_args "${curl_param_args[@]}"
 }
 
 # ==============================================================================
@@ -249,13 +235,17 @@ send_http_request() {
     fi
     
     # Generate curl header arguments
-    local CURL_HEADERS
-    eval "CURL_HEADERS=($(build_curl_headers "${RAW_HEADERS[@]}"))"
+    local SERIALIZED_CURL_HEADERS
+    SERIALIZED_CURL_HEADERS=$(build_curl_headers "${RAW_HEADERS[@]}")
+    local CURL_HEADERS=()
+    deserialize_args CURL_HEADERS "$SERIALIZED_CURL_HEADERS"
 
     # Generate curl URL-encoded parameter arguments
     local CURL_PARAMS=()
     if [[ ${#RAW_PARAMS[@]} -gt 0 ]]; then
-        eval "CURL_PARAMS=($(build_curl_params "${RAW_PARAMS[@]}"))"
+        local SERIALIZED_CURL_PARAMS
+        SERIALIZED_CURL_PARAMS=$(build_curl_params "${RAW_PARAMS[@]}")
+        deserialize_args CURL_PARAMS "$SERIALIZED_CURL_PARAMS"
     fi
 
     # Setup temporary file to capture the HTTP response body and status code
