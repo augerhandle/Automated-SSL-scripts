@@ -4,19 +4,31 @@
 # Test script for assert.sh
 # ========================================================================
 
-# ANSI Color Codes
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color (Reset)
+# ------------------------------------------------------------------------
+# Dependencies
+# ------------------------------------------------------------------------
 
 # Resolve paths relative to this test script's location
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 TEST_DIR="${SCRIPT_DIR}"
 PROJECT_ROOT="$(cd "${TEST_DIR}/.." && pwd)"
 LIB_DIR="${PROJECT_ROOT}/lib"
 
 # Source the assert library
 source "${LIB_DIR}/assert.sh"
+
+# ------------------------------------------------------------------------
+# setup
+# ------------------------------------------------------------------------
+
+# ANSI Color Codes
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color (Reset)
+
+# ------------------------------------------------------------------------
+# test cases
+# ------------------------------------------------------------------------
 
 echo "Running assert.sh tests..."
 echo "------------------------------------------------"
