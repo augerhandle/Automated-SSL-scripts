@@ -26,7 +26,7 @@ echo "Running logging.sh tests..."
 echo "------------------------------------------------"
 
 # 1. Test log_info
-echo "[TEST] log_info format and output"
+test_header "log_info format and output"
 OUTPUT=$(log_info "Test info message" 2>&1)
 echo "Got: $OUTPUT"
 if echo "$OUTPUT" | grep -q '\[INFO \].*Test info message'; then
@@ -36,7 +36,7 @@ else
 fi
 
 # 2. Test log_err
-echo "[TEST] log_err format and output"
+test_header "log_err format and output"
 OUTPUT=$(log_err "Test error message" 2>&1)
 echo "Got: $OUTPUT"
 if echo "$OUTPUT" | grep -q '\[ERROR\].*Test error message'; then
@@ -46,7 +46,7 @@ else
 fi
 
 # 3. Test log_verbose (disabled by default)
-echo "[TEST] log_verbose (disabled when VERBOSE is unset)"
+test_header "log_verbose (disabled when VERBOSE is unset)"
 # Ensure we run this in a subshell without verbose variables set
 OUTPUT=$(VERBOSE=0 DEBUG=0 log_verbose "Should not print" 2>&1)
 if [[ -z "$OUTPUT" ]]; then
@@ -57,7 +57,7 @@ else
 fi
 
 # 4. Test log_verbose (enabled via environment variable)
-echo "[TEST] log_verbose (enabled via VERBOSE=1)"
+test_header "log_verbose (enabled via VERBOSE=1)"
 OUTPUT=$(VERBOSE=1 log_verbose "Test debug message" 2>&1)
 echo "Got: $OUTPUT"
 if echo "$OUTPUT" | grep -q '\[DEBUG\].*Test debug message'; then
@@ -67,7 +67,7 @@ else
 fi
 
 # 5. Test log_verbose_vars
-echo "[TEST] log_verbose_vars (evaluates variable contents)"
+test_header "log_verbose_vars (evaluates variable contents)"
 TEST_VAR="hello_world"
 OUTPUT=$(VERBOSE=1 log_verbose_vars TEST_VAR 2>&1)
 echo "Got: $OUTPUT"
@@ -78,7 +78,7 @@ else
 fi
 
 # 6. Test log_verbose_secret_vars
-echo "[TEST] log_verbose_secret_vars (masks variable contents)"
+test_header "log_verbose_secret_vars (masks variable contents)"
 SECRET_VAR="super_secret_password"
 OUTPUT=$(VERBOSE=1 log_verbose_secret_vars SECRET_VAR 2>&1)
 echo "Got: $OUTPUT"
@@ -94,7 +94,7 @@ else
 fi
 
 # 7. Test log_fatal
-echo "[TEST] log_fatal (prints and exits with 1)"
+test_header "log_fatal (prints and exits with 1)"
 # Must run in a subshell so it doesn't kill the test script itself
 OUTPUT=$( (log_fatal "Test fatal message") 2>&1 )
 EXIT_CODE=$?

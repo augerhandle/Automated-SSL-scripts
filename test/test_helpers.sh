@@ -7,7 +7,13 @@
 # ANSI Color Codes
 GREEN='\033[0;32m'
 RED='\033[0;31m'
+YELLOW='\033[0;33m'
 NC='\033[0m' # No Color (Reset)
+
+test_header() {
+    local msg="$1"
+    printf "${YELLOW}[TEST] %s${NC}\n" "$msg"
+}
 
 test_pass() {
     local msg="${1:-Success}"
