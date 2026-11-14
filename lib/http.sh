@@ -82,15 +82,40 @@ build_url() {
 # Constructs a curl-compatible header array from a standardized format.
 # Usage: build_curl_headers "Accept: application/json" "Authorization: cpanel user:token"
 build_curl_headers() {
-    local headers=("$@")
+    log_verbose "Building curl headers for $# header(s)"
+
+    # ---------------
+    # PRE-CONDITIONS
+    # ---------------
+    local header
+    for header in "$@"; do
+        assert_nonempty header
+        assert_true "header must not contain CR or LF characters" \
+            bash -c '[[ "$1" != *$'\''\n'\''* && "$1" != *$'\''\r'\''* ]]' _ "$header"
+        assert_true "header must match 'Name: Value' format" \
+            bash -c '[[ "$1" =~ ^[^:[:space:]]+: ]]' _ "$header"
+    done
+
+    # ---------------
+    # IMPLEMENTATION
+    # ---------------
+    if [[ $# -eq 0 ]]; then
+        log_verbose "No headers provided; returning empty argument list"
+        return 0
+    fi
+
     local curl_header_args=()
-    
-    for header in "${headers[@]}"; do
+    for header in "$@"; do
+        log_verbose_vars header
         curl_header_args+=("-H" "${header}")
     done
-    
+
+    local serialized_args
+    serialized_args=$(printf '%q ' "${curl_header_args[@]}")
+    log_verbose_vars serialized_args
+
     # Print the array elements quoted so the caller can eval/read them back
-    printf '%q ' "${curl_header_args[@]}"
+    printf '%s' "${serialized_args}"
 }
 
 # Constructs a curl-compatible URL-encoded parameter array from key=value pairs.
