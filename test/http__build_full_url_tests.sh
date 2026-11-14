@@ -4,10 +4,9 @@
 # Test script for build_full_url in http.sh
 # ========================================================================
 
-# ANSI Color Codes
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color (Reset)
+# ------------------------------------------------------------------------
+# Dependencies
+# ------------------------------------------------------------------------
 
 # Resolve paths relative to this test script's location
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,11 +14,21 @@ TEST_DIR="${SCRIPT_DIR}"
 PROJECT_ROOT="$(cd "${TEST_DIR}/.." && pwd)"
 LIB_DIR="${PROJECT_ROOT}/lib"
 
-# Source the assert library (needed for assert_argc inside http.sh)
 source "${LIB_DIR}/assert.sh"
-
-# Source the http module to get the build_full_url function
 source "${LIB_DIR}/http.sh"
+
+# ------------------------------------------------------------------------
+# setup
+# ------------------------------------------------------------------------
+
+# ANSI Color Codes
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color (Reset)
+
+# ------------------------------------------------------------------------
+# test cases
+# ------------------------------------------------------------------------
 
 echo "Running build_full_url tests..."
 echo "------------------------------------------------"
