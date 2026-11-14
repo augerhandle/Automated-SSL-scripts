@@ -32,11 +32,34 @@ build_url() {
 
     log_verbose_vars base_url endpoint
 
-    # Pre-conditions: base_url must be non-empty; neither arg may contain whitespace
+    # ---------------
+    # PRE-CONDITIONS
+    # ---------------
+    # - base_url must be non-empty
     assert_nonempty base_url
+    # - base_url must be whitespace-free, and contain a valid host segment
+    #   with an optional http:// or https:// scheme (rejects "", "http://", "https://", "/")
     assert_true "base_url must not contain whitespace" test -z "${base_url//[^[:space:]]/}"
+    assert_true "base_url must be a valid host with optional http(s):// scheme" \
+        bash -c '
+            url="$1"
+            if [[ "$url" =~ ^https?:// ]]; then
+                # Explicit scheme present: require at least one non-slash host character
+                # after "http://" or "https://" (rejects bare "http://" and "https://")
+                [[ "$url" =~ ^https?://[^/[:space:]]+(/[^[:space:]]*)?$ ]]
+            else
+                # No explicit scheme: require a host without ":" or "/" (so "https://"
+                # cannot backtrack and masquerade as host="https:" + path="/"), while
+                # still allowing an optional numeric port (e.g., ":8080") and base path
+                [[ "$url" =~ ^[^/:[:space:]]+(:[0-9]+)?(/[^[:space:]]*)?$ ]]
+            fi
+        ' _ "$base_url"
+    # - endpoint may be empty, but must not contain whitespace
     assert_true "endpoint must not contain whitespace" test -z "${endpoint//[^[:space:]]/}"
 
+    # ---------------
+    # IMPLEMENTATION
+    # ---------------
     # Prepend https:// if neither http:// nor https:// is present
     if [[ ! "$base_url" =~ ^https?:// ]]; then
         base_url="https://${base_url}"
@@ -49,6 +72,13 @@ build_url() {
 
     local full_url="${base_url}/${endpoint}"
     log_verbose_vars full_url
+
+    # ---------------
+    # POST-CONDITIONS
+    # ---------------
+    assert_nonempty full_url
+    assert_true "full_url must be a valid http(s) URL with host and no whitespace" \
+        bash -c '[[ "$1" =~ ^https?://[^/[:space:]]+/[^[:space:]]*$ ]]' _ "$full_url"
 
     echo "${full_url}"
 }
@@ -173,9 +203,11 @@ send_http_request() {
 
     if [[ ${#CURL_PARAMS[@]} -gt 0 ]]; then
         # For GET requests, instruct curl to append --data-urlencode items to the query string
-        if [[ "${HTTP_METHOD^^}" == "GET" ]]; then
-            CURL_CMD+=("--get")
-        fi
+        case "$HTTP_METHOD" in
+            GET|get)
+                CURL_CMD+=("--get")
+                ;;
+        esac
         CURL_CMD+=("${CURL_PARAMS[@]}")
         log_verbose "Attaching ${#RAW_PARAMS[@]} URL-encoded parameter(s)"
     fi

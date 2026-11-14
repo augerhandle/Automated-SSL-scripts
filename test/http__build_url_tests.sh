@@ -106,6 +106,27 @@ else
     test_pass "Failure caught successfully."
 fi
 
+echo "[TEST] Pre-condition: Bare https:// scheme without host (Failure case expected)"
+if ( build_url "https://" "/v1/users" > /dev/null 2>&1 ); then
+    test_fail "Unexpected Success (Test Failed: Should have rejected bare https://)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+echo "[TEST] Pre-condition: Bare http:// scheme without host (Failure case expected)"
+if ( build_url "http://" "/v1/users" > /dev/null 2>&1 ); then
+    test_fail "Unexpected Success (Test Failed: Should have rejected bare http://)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+echo "[TEST] Pre-condition: Slash-only base_url without host (Failure case expected)"
+if ( build_url "/" "/v1/users" > /dev/null 2>&1 ); then
+    test_fail "Unexpected Success (Test Failed: Should have rejected slash-only base_url)"
+else
+    test_pass "Failure caught successfully."
+fi
+
 echo "[TEST] Pre-condition: Whitespace-only endpoint (Failure case expected)"
 if ( build_url "https://api.example.com" "   " > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected whitespace-only endpoint)"
