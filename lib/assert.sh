@@ -12,11 +12,11 @@
 # dependencies
 # ========================================================================
 # Resolve directory relative to THIS library file
-_THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_LIB_DIR="${_THIS_DIR}"
+_DAH_ASSERT_SH_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_DAH_ASSERT_SH_LIB_DIR="${_DAH_ASSERT_SH_SCRIPT_DIR}"
 
 # Source dependencies
-source "${_LIB_DIR}/logging.sh"
+source "${_DAH_ASSERT_SH_LIB_DIR}/logging.sh"
 
 # ========================================================================
 # Internal functions
