@@ -71,16 +71,16 @@ serialize_args() {
         return 0
     fi
 
-    local serialized
-    serialized=$(printf '%q ' "$@")
-    log_verbose "serialized: $serialized"
+    local serialized_args
+    serialized_args=$(printf '%q ' "$@")
+    log_verbose "serialized: ${serialized_args}"
 
     # ---------------
     # POST-CONDITIONS
     # ---------------
-    assert_nonempty serialized
+    assert_nonempty serialized_args
 
-    printf '%s' "${serialized}"
+    printf '%s' "${serialized_args}"
 }
 
 # ------------------------------------------------------------------------
@@ -98,34 +98,34 @@ serialize_args() {
 # ------------------------------------------------------------------------
 deserialize_args() {
     assert_argc 2 $#
-    local target_var="$1"
-    local serialized="$2"
+    local __target_var="$1"
+    local __serialized_args="$2"
 
-    log_verbose "deserializing into '${target_var}': $serialized"
+    log_verbose "deserializing into '${__target_var}': ${__serialized_args}"
 
     # ---------------
     # PRE-CONDITIONS
     # ---------------
     # Prevent variable-name injection: ensure $1 is a valid Bash identifier
     assert_true "target_var must be a valid Bash variable name" \
-        bash -c '[[ "$1" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]' _ "$target_var"
+        bash -c '[[ "$1" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]' _ "$__target_var"
 
     # ---------------
     # IMPLEMENTATION
     # ---------------
     # Clear destination array first (handles empty or whitespace-only input safely)
-    eval "${target_var}=()"
+    eval "${__target_var}=()"
 
-    if [[ -z "${serialized//[^[:space:]]/}" ]]; then
-        log_verbose "serialized input is empty/whitespace-only; cleared '${target_var}' (0 elements)"
+    if [[ -z "${__serialized_args//[^[:space:]]/}" ]]; then
+        log_verbose "serialized input is empty/whitespace-only; cleared '${__target_var}' (0 elements)"
         return 0
     fi
 
-    eval "${target_var}=(${serialized})"
+    eval "${__target_var}=(${__serialized_args})"
 
     local element_count
-    eval "element_count=\${#${target_var}[@]}"
-    log_verbose "deserialized ${element_count} element(s) into '${target_var}'"
+    eval "element_count=\${#${__target_var}[@]}"
+    log_verbose "deserialized ${element_count} element(s) into '${__target_var}'"
 }
 
 # Set guard only after everything in the file loaded cleanly
