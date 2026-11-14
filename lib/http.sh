@@ -22,9 +22,19 @@ source "${_DAH_HTTP_SH_LIB_DIR}/assert.sh"
 # SUB-FUNCTIONS (Modular & Unit-Testable without network)
 # ==============================================================================
 
+# ------------------------------------------------------------------------------
 # Constructs the URL from a base URL and an endpoint path.
 # Prepends "https://" if no http:// or https:// scheme is present.
-# Usage: build_url "api.example.com" "/v1/users"
+#
+# Arguments:
+#   $1 - Base host or URL (e.g., "api.example.com" or "https://api.example.com")
+#   $2 - API endpoint path (e.g., "/v1/users")
+# Outputs:
+#   Writes the normalized full URL to stdout.
+# Example:
+#   build_url "api.example.com" "/v1/users"
+#   # => https://api.example.com/v1/users
+# ------------------------------------------------------------------------------
 build_url() {
     assert_argc 2 $#
     local base_url="$1"
@@ -79,8 +89,17 @@ build_url() {
     echo "${full_url}"
 }
 
-# Constructs a curl-compatible header array from a standardized format.
-# Usage: build_curl_headers "Accept: application/json" "Authorization: cpanel user:token"
+# ------------------------------------------------------------------------------
+# Formats "Name: Value" header arguments into shell-quoted curl -H flags.
+#
+# Arguments:
+#   $@ - One or more HTTP header strings in "Name: Value" format
+# Outputs:
+#   Writes shell-quoted "-H <header>" arguments to stdout (safe for eval).
+# Example:
+#   build_curl_headers "Accept: application/json" "Authorization: cpanel user:token"
+#   # => -H Accept:\ application/json -H Authorization:\ cpanel\ user:token
+# ------------------------------------------------------------------------------
 build_curl_headers() {
     log_verbose "Building curl headers for $# header(s)"
 
@@ -118,18 +137,57 @@ build_curl_headers() {
     printf '%s' "${serialized_args}"
 }
 
-# Constructs a curl-compatible URL-encoded parameter array from key=value pairs.
-# Usage: build_curl_params "domain=example.com" "email=admin@example.com"
+# ------------------------------------------------------------------------------
+# Formats "key=value" parameter arguments into shell-quoted curl --data-urlencode flags.
+#
+# Arguments:
+#   $@ - One or more parameter strings in "key=value" format
+# Outputs:
+#   Writes shell-quoted "--data-urlencode <param>" arguments to stdout (safe for eval).
+# Example:
+#   build_curl_params "domain=example.com" "email=admin@example.com"
+#   # => --data-urlencode domain=example.com --data-urlencode email=admin@example.com
+# ------------------------------------------------------------------------------
 build_curl_params() {
-    local params=("$@")
+    log_verbose "Building curl parameters for $# parameter(s)"
+
+    # ---------------
+    # PRE-CONDITIONS
+    # ---------------
+    # Each parameter must be non-empty and match "key=value" where key has no '=' or whitespace.
+    # (Value may be empty, contain '=', spaces, newlines, or special characters since curl URL-encodes it.)
+    local param
+    for param in "$@"; do
+        assert_nonempty param
+        assert_true "param must match 'key=value' format with a non-empty, whitespace-free key" \
+            bash -c '[[ "$1" =~ ^[^=[:space:]]+= ]]' _ "$param"
+    done
+
+    # ---------------
+    # IMPLEMENTATION
+    # ---------------
+    if [[ $# -eq 0 ]]; then
+        log_verbose "No parameters provided; returning empty argument list"
+        return 0
+    fi
+
     local curl_param_args=()
-    
-    for param in "${params[@]}"; do
+    for param in "$@"; do
+        log_verbose_vars param
         curl_param_args+=("--data-urlencode" "${param}")
     done
-    
+
+    local serialized_args
+    serialized_args=$(printf '%q ' "${curl_param_args[@]}")
+    log_verbose_vars serialized_args
+
+    # ---------------
+    # POST-CONDITIONS
+    # ---------------
+    assert_nonempty serialized_args
+
     # Print the array elements quoted so the caller can eval/read them back
-    printf '%q ' "${curl_param_args[@]}"
+    printf '%s' "${serialized_args}"
 }
 
 # ==============================================================================
