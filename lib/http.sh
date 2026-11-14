@@ -1,35 +1,60 @@
 #!/usr/bin/env bash
 
-# Source required dependencies (assuming they exist in your lib directory)
-source "lib/assert.sh"
-source "lib/logging.sh"
+# ========================================================================
+# HTTP request/response functions
+# ========================================================================
+
+# prevent sourcing multiple times
+[ -n "${_DAH_HTTP_SH:-}" ] && return 0
+
+# ========================================================================
+# dependencies
+# ========================================================================
+# Resolve directory relative to THIS library file
+_DAH_HTTP_SH_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_DAH_HTTP_SH_LIB_DIR="${_DAH_HTTP_SH_SCRIPT_DIR}"
+
+# Source dependencies
+source "${_DAH_HTTP_SH_LIB_DIR}/logging.sh"
+source "${_DAH_HTTP_SH_LIB_DIR}/assert.sh"
 
 # ==============================================================================
 # SUB-FUNCTIONS (Modular & Unit-Testable without network)
 # ==============================================================================
 
-# Constructs the full URL from a base URL and an endpoint path.
+# Constructs the URL from a base URL and an endpoint path.
 # Prepends "https://" if no http:// or https:// scheme is present.
-# Usage: build_full_url "api.example.com" "/v1/users"
-build_full_url() {
+# Usage: build_url "api.example.com" "/v1/users"
+build_url() {
     assert_argc 2 $#
     local base_url="$1"
     local endpoint="$2"
 
+    log_verbose_vars base_url endpoint
+
+    # Pre-conditions: base_url must be non-empty; neither arg may contain whitespace
+    assert_nonempty base_url
+    assert_true "base_url must not contain whitespace" test -z "${base_url//[^[:space:]]/}"
+    assert_true "endpoint must not contain whitespace" test -z "${endpoint//[^[:space:]]/}"
+
     # Prepend https:// if neither http:// nor https:// is present
     if [[ ! "$base_url" =~ ^https?:// ]]; then
         base_url="https://${base_url}"
+        log_verbose "Prepended https:// scheme to base_url"
     fi
 
     # Strip trailing slash from base and leading slash from endpoint for clean join
     base_url="${base_url%/}"
     endpoint="${endpoint#/}"
 
-    echo "${base_url}/${endpoint}"
+    local full_url="${base_url}/${endpoint}"
+    log_verbose_vars full_url
+
+    echo "${full_url}"
 }
 
-# Constructs a curl-compatible header array from a standardized format
-# Usage: build_curl_headers "Content-Type: application/json" "Authorization: Bearer token"
+# Constructs a curl-compatible header array from a standardized format.
+# Usage: build_curl_headers "Accept: application/json" "Authorization: cpanel user:token"
 build_curl_headers() {
     local headers=("$@")
     local curl_header_args=()
@@ -42,12 +67,34 @@ build_curl_headers() {
     printf '%q ' "${curl_header_args[@]}"
 }
 
+# Constructs a curl-compatible URL-encoded parameter array from key=value pairs.
+# Usage: build_curl_params "domain=example.com" "email=admin@example.com"
+build_curl_params() {
+    local params=("$@")
+    local curl_param_args=()
+    
+    for param in "${params[@]}"; do
+        curl_param_args+=("--data-urlencode" "${param}")
+    done
+    
+    # Print the array elements quoted so the caller can eval/read them back
+    printf '%q ' "${curl_param_args[@]}"
+}
+
 # ==============================================================================
 # MAIN HTTP REQUEST FUNCTION
 # ==============================================================================
 
-# Sends an HTTP request and evaluates the response.
-# Usage: send_http_request <METHOD> <BASE_URL> <ENDPOINT> <PAYLOAD_FILE>
+# Sends an HTTP request with URL-encoded parameters and optional custom headers.
+# Usage: send_http_request <METHOD> <BASE_URL> <ENDPOINT> [HEADERS_STR] [PARAM_1 PARAM_2 ...]
+#
+# Arguments:
+#   METHOD      - HTTP verb (e.g., GET, POST)
+#   BASE_URL    - Host or base URL (e.g., "cpanel.example.com:2083")
+#   ENDPOINT    - API endpoint path (e.g., "/execute/Email/list_pops")
+#   HEADERS_STR - Optional newline-delimited string of custom headers
+#                 (e.g., $'Authorization: cpanel user:token\nX-Custom: val')
+#   PARAM_N     - Optional key=value parameter pairs to URL-encode
 send_http_request() {
     # --------------------------------------------------------------------------
     # 1. PRE-CONDITIONS & ASSERTIONS
@@ -58,15 +105,16 @@ send_http_request() {
     local HTTP_METHOD="$1"
     local BASE_URL="$2"
     local ENDPOINT="$3"
-    local PAYLOAD_FILE="${4:-}"
+    local CUSTOM_HEADERS_STR="${4:-}"
+    shift 3
+    if [[ $# -gt 0 ]]; then
+        shift 1
+    fi
+    local RAW_PARAMS=("$@")
     
     # Verify core variables are set
     assert_nonempty HTTP_METHOD
     assert_nonempty BASE_URL
-    
-    if [[ -n "$PAYLOAD_FILE" ]]; then
-        assert_file_readable PAYLOAD_FILE
-    fi
 
     # --------------------------------------------------------------------------
     # 2. HTTP CONFIGURATION & SETUP
@@ -74,18 +122,32 @@ send_http_request() {
     log_info "Configuring HTTP request"
     
     local FULL_URL
-    FULL_URL=$(build_full_url "$BASE_URL" "$ENDPOINT")
+    FULL_URL=$(build_url "$BASE_URL" "$ENDPOINT")
     
-    # Define HTTP Headers clearly
+    # Define default HTTP Headers (no Content-Type; curl sets it automatically on POST)
     local RAW_HEADERS=(
         "Accept: application/json"
-        "Content-Type: application/json"
         "User-Agent: Bash-API-Client/1.0"
     )
+
+    # Append any newline-delimited custom headers (such as Authorization)
+    if [[ -n "$CUSTOM_HEADERS_STR" ]]; then
+        while IFS= read -r custom_header; do
+            if [[ -n "$custom_header" ]]; then
+                RAW_HEADERS+=("$custom_header")
+            fi
+        done <<< "$CUSTOM_HEADERS_STR"
+    fi
     
     # Generate curl header arguments
     local CURL_HEADERS
     eval "CURL_HEADERS=($(build_curl_headers "${RAW_HEADERS[@]}"))"
+
+    # Generate curl URL-encoded parameter arguments
+    local CURL_PARAMS=()
+    if [[ ${#RAW_PARAMS[@]} -gt 0 ]]; then
+        eval "CURL_PARAMS=($(build_curl_params "${RAW_PARAMS[@]}"))"
+    fi
 
     # Setup temporary file to capture the HTTP response body and status code
     local RESPONSE_BODY_FILE
@@ -107,13 +169,18 @@ send_http_request() {
         --write-out "%{http_code}" 
         --output "$RESPONSE_BODY_FILE"
         "${CURL_HEADERS[@]}"
-        "$FULL_URL"
     )
 
-    if [[ -n "$PAYLOAD_FILE" ]]; then
-        CURL_CMD+=("--data" "@${PAYLOAD_FILE}")
-        log_verbose "Attaching request payload from: $PAYLOAD_FILE"
+    if [[ ${#CURL_PARAMS[@]} -gt 0 ]]; then
+        # For GET requests, instruct curl to append --data-urlencode items to the query string
+        if [[ "${HTTP_METHOD^^}" == "GET" ]]; then
+            CURL_CMD+=("--get")
+        fi
+        CURL_CMD+=("${CURL_PARAMS[@]}")
+        log_verbose "Attaching ${#RAW_PARAMS[@]} URL-encoded parameter(s)"
     fi
+
+    CURL_CMD+=("$FULL_URL")
 
     # Execute curl and capture the HTTP status code written to stdout
     local HTTP_STATUS_CODE
@@ -154,3 +221,6 @@ send_http_request() {
     echo "$HTTP_RESPONSE_BODY"
     return 0
 }
+
+# Set guard only after everything in the file loaded cleanly
+_DAH_HTTP_SH=1
