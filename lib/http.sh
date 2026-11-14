@@ -9,16 +9,22 @@ source "lib/logging.sh"
 # ==============================================================================
 
 # Constructs the full URL from a base URL and an endpoint path.
-# Usage: build_full_url "https://api.example.com" "/v1/users"
+# Prepends "https://" if no http:// or https:// scheme is present.
+# Usage: build_full_url "api.example.com" "/v1/users"
 build_full_url() {
     assert_argc 2 $#
     local base_url="$1"
     local endpoint="$2"
-    
+
+    # Prepend https:// if neither http:// nor https:// is present
+    if [[ ! "$base_url" =~ ^https?:// ]]; then
+        base_url="https://${base_url}"
+    fi
+
     # Strip trailing slash from base and leading slash from endpoint for clean join
     base_url="${base_url%/}"
     endpoint="${endpoint#/}"
-    
+
     echo "${base_url}/${endpoint}"
 }
 
