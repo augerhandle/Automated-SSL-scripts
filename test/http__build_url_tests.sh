@@ -27,58 +27,58 @@ echo "Running build_url tests..."
 echo "------------------------------------------------"
 
 # 1. Happy Cases: Standard formatting
-echo "[TEST] Happy Case: No extra slashes"
+test_header "Happy Case: No extra slashes"
 RESULT=$(build_url "https://api.example.com" "v1/users")
 assert_test_equals "https://api.example.com/v1/users" "$RESULT"
 
-echo "[TEST] Happy Case: Trailing slash on base URL only"
+test_header "Happy Case: Trailing slash on base URL only"
 RESULT=$(build_url "https://api.example.com/" "v1/users")
 assert_test_equals "https://api.example.com/v1/users" "$RESULT"
 
-echo "[TEST] Happy Case: Leading slash on endpoint only"
+test_header "Happy Case: Leading slash on endpoint only"
 RESULT=$(build_url "https://api.example.com" "/v1/users")
 assert_test_equals "https://api.example.com/v1/users" "$RESULT"
 
-echo "[TEST] Happy Case: Slashes on both base URL and endpoint"
+test_header "Happy Case: Slashes on both base URL and endpoint"
 RESULT=$(build_url "https://api.example.com/" "/v1/users")
 assert_test_equals "https://api.example.com/v1/users" "$RESULT"
 
 # 2. Protocol / Scheme Handling
-echo "[TEST] Scheme Handling: Missing scheme prepends https://"
+test_header "Scheme Handling: Missing scheme prepends https://"
 RESULT=$(build_url "api.example.com" "/v1/users")
 assert_test_equals "https://api.example.com/v1/users" "$RESULT"
 
-echo "[TEST] Scheme Handling: Missing scheme with trailing slash on base URL"
+test_header "Scheme Handling: Missing scheme with trailing slash on base URL"
 RESULT=$(build_url "api.example.com/" "v1/users")
 assert_test_equals "https://api.example.com/v1/users" "$RESULT"
 
-echo "[TEST] Scheme Handling: Explicit http:// scheme is preserved"
+test_header "Scheme Handling: Explicit http:// scheme is preserved"
 RESULT=$(build_url "http://localhost:8080" "/v1/users")
 assert_test_equals "http://localhost:8080/v1/users" "$RESULT"
 
-echo "[TEST] Scheme Handling: Missing scheme with port prepends https://"
+test_header "Scheme Handling: Missing scheme with port prepends https://"
 RESULT=$(build_url "cpanel.example.com:2083" "/execute/Email/list_pops")
 assert_test_equals "https://cpanel.example.com:2083/execute/Email/list_pops" "$RESULT"
 
-echo "[TEST] Scheme Handling: Missing scheme with port and base path"
+test_header "Scheme Handling: Missing scheme with port and base path"
 RESULT=$(build_url "cpanel.example.com:2083/cpsess123" "/execute/Email/list_pops")
 assert_test_equals "https://cpanel.example.com:2083/cpsess123/execute/Email/list_pops" "$RESULT"
 
 # 3. Corner Conditions
-echo "[TEST] Corner Condition: Empty endpoint"
+test_header "Corner Condition: Empty endpoint"
 RESULT=$(build_url "https://api.example.com" "")
 assert_test_equals "https://api.example.com/" "$RESULT"
 
-echo "[TEST] Corner Condition: Missing scheme with empty endpoint"
+test_header "Corner Condition: Missing scheme with empty endpoint"
 RESULT=$(build_url "api.example.com" "")
 assert_test_equals "https://api.example.com/" "$RESULT"
 
-echo "[TEST] Corner Condition: Sub-paths with multiple slashes in endpoint"
+test_header "Corner Condition: Sub-paths with multiple slashes in endpoint"
 RESULT=$(build_url "https://api.example.com/" "/v1/users/profile/details/")
 assert_test_equals "https://api.example.com/v1/users/profile/details/" "$RESULT"
 
 # 4. Pre-condition & Argument Assertions (Expected Failures)
-echo "[TEST] Pre-condition: Missing arguments (Failure case expected)"
+test_header "Pre-condition: Missing arguments (Failure case expected)"
 # Run in subshell to prevent assert_argc from exiting the test script
 if ( build_url "https://api.example.com" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected 1 argument)"
@@ -86,91 +86,91 @@ else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Too many arguments (Failure case expected)"
+test_header "Pre-condition: Too many arguments (Failure case expected)"
 if ( build_url "https://api.example.com" "/v1/users" "extra_arg" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected 3 arguments)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Empty base_url (Failure case expected)"
+test_header "Pre-condition: Empty base_url (Failure case expected)"
 if ( build_url "" "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected empty base_url)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Whitespace-only base_url (Failure case expected)"
+test_header "Pre-condition: Whitespace-only base_url (Failure case expected)"
 if ( build_url "   " "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected whitespace-only base_url)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Whitespace inside base_url (Failure case expected)"
+test_header "Pre-condition: Whitespace inside base_url (Failure case expected)"
 if ( build_url "https://api.example .com" "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected whitespace in base_url)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Bare https:// scheme without host (Failure case expected)"
+test_header "Pre-condition: Bare https:// scheme without host (Failure case expected)"
 if ( build_url "https://" "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected bare https://)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Bare http:// scheme without host (Failure case expected)"
+test_header "Pre-condition: Bare http:// scheme without host (Failure case expected)"
 if ( build_url "http://" "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected bare http://)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Slash-only base_url without host (Failure case expected)"
+test_header "Pre-condition: Slash-only base_url without host (Failure case expected)"
 if ( build_url "/" "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected slash-only base_url)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Unsupported scheme like ftp:// (Failure case expected)"
+test_header "Pre-condition: Unsupported scheme like ftp:// (Failure case expected)"
 if ( build_url "ftp://api.example.com" "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected ftp:// scheme)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Malformed single-slash scheme https:/ (Failure case expected)"
+test_header "Pre-condition: Malformed single-slash scheme https:/ (Failure case expected)"
 if ( build_url "https:/api.example.com" "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected https:/ typo)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Non-numeric port in schemeless base_url (Failure case expected)"
+test_header "Pre-condition: Non-numeric port in schemeless base_url (Failure case expected)"
 if ( build_url "api.example.com:abc" "/v1/users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected non-numeric port)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Whitespace-only endpoint (Failure case expected)"
+test_header "Pre-condition: Whitespace-only endpoint (Failure case expected)"
 if ( build_url "https://api.example.com" "   " > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected whitespace-only endpoint)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Whitespace inside endpoint (Failure case expected)"
+test_header "Pre-condition: Whitespace inside endpoint (Failure case expected)"
 if ( build_url "https://api.example.com" "/v1/my users" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected whitespace in endpoint)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Tab/newline whitespace in arguments (Failure case expected)"
+test_header "Pre-condition: Tab/newline whitespace in arguments (Failure case expected)"
 if ( build_url "https://api.example.com" $'/v1/users\tprofile' > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected tab character in endpoint)"
 else

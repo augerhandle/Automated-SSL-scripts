@@ -27,96 +27,96 @@ echo "Running build_curl_headers tests..."
 echo "------------------------------------------------"
 
 # 1. Happy Cases: Standard formatting
-echo "[TEST] Happy Case: Single standard header"
+test_header "Happy Case: Single standard header"
 RESULT=$(build_curl_headers "Accept: application/json")
 EXPECTED=$(printf '%q ' "-H" "Accept: application/json")
 assert_test_equals "$EXPECTED" "$RESULT"
 
-echo "[TEST] Happy Case: Multiple headers preserve order and spacing"
+test_header "Happy Case: Multiple headers preserve order and spacing"
 RESULT=$(build_curl_headers "Accept: application/json" "Authorization: cpanel user:token123" "User-Agent: Bash-API-Client/1.0")
 EXPECTED=$(printf '%q ' "-H" "Accept: application/json" "-H" "Authorization: cpanel user:token123" "-H" "User-Agent: Bash-API-Client/1.0")
 assert_test_equals "$EXPECTED" "$RESULT"
 
 # 2. Corner Conditions
-echo "[TEST] Corner Condition: Zero arguments returns empty output and exits 0"
+test_header "Corner Condition: Zero arguments returns empty output and exits 0"
 RESULT=$(build_curl_headers)
 EXIT_CODE=$?
 assert_test_equals "0" "$EXIT_CODE"
 assert_test_equals "" "$RESULT"
 
-echo "[TEST] Corner Condition: Header with no space after colon"
+test_header "Corner Condition: Header with no space after colon"
 RESULT=$(build_curl_headers "X-Custom:value")
 EXPECTED=$(printf '%q ' "-H" "X-Custom:value")
 assert_test_equals "$EXPECTED" "$RESULT"
 
-echo "[TEST] Corner Condition: Header with empty value (curl header suppression syntax)"
+test_header "Corner Condition: Header with empty value (curl header suppression syntax)"
 RESULT=$(build_curl_headers "X-Empty:")
 EXPECTED=$(printf '%q ' "-H" "X-Empty:")
 assert_test_equals "$EXPECTED" "$RESULT"
 
-echo "[TEST] Corner Condition: Header value containing colons, quotes, and shell metacharacters"
+test_header "Corner Condition: Header value containing colons, quotes, and shell metacharacters"
 RESULT=$(build_curl_headers "X-Complex: foo:bar; \$baz 'qux' \"quux\" & *")
 EXPECTED=$(printf '%q ' "-H" "X-Complex: foo:bar; \$baz 'qux' \"quux\" & *")
 assert_test_equals "$EXPECTED" "$RESULT"
 
 # 3. Pre-condition & Argument Assertions (Expected Failures)
-echo "[TEST] Pre-condition: Empty string argument (Failure case expected)"
+test_header "Pre-condition: Empty string argument (Failure case expected)"
 if ( build_curl_headers "" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected empty header)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Whitespace-only header (Failure case expected)"
+test_header "Pre-condition: Whitespace-only header (Failure case expected)"
 if ( build_curl_headers "   " > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected whitespace-only header)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Missing colon separator (Failure case expected)"
+test_header "Pre-condition: Missing colon separator (Failure case expected)"
 if ( build_curl_headers "Authorization cpanel user:token" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected header missing colon)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Empty header name before colon (Failure case expected)"
+test_header "Pre-condition: Empty header name before colon (Failure case expected)"
 if ( build_curl_headers ": application/json" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected empty header name)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Whitespace inside header name (Failure case expected)"
+test_header "Pre-condition: Whitespace inside header name (Failure case expected)"
 if ( build_curl_headers "Bad Header: value" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected whitespace in header name)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Leading whitespace before header name (Failure case expected)"
+test_header "Pre-condition: Leading whitespace before header name (Failure case expected)"
 if ( build_curl_headers " Accept: application/json" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected leading whitespace)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Embedded LF newline injection (Failure case expected)"
+test_header "Pre-condition: Embedded LF newline injection (Failure case expected)"
 if ( build_curl_headers $'Accept: application/json\nX-Injected: evil' > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected LF newline in header)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Embedded CR carriage return injection (Failure case expected)"
+test_header "Pre-condition: Embedded CR carriage return injection (Failure case expected)"
 if ( build_curl_headers $'Accept: application/json\rX-Injected: evil' > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected CR character in header)"
 else
     test_pass "Failure caught successfully."
 fi
 
-echo "[TEST] Pre-condition: Invalid second header fails even when first header is valid (Failure case expected)"
+test_header "Pre-condition: Invalid second header fails even when first header is valid (Failure case expected)"
 if ( build_curl_headers "Accept: application/json" "InvalidHeader" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected invalid subsequent header)"
 else
