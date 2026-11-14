@@ -54,6 +54,20 @@ deserialize_args DESERIALIZED_ARGS "$SERIALIZED_STRING"
 assert_test_equals "1" "${#DESERIALIZED_ARGS[@]}"
 assert_test_equals "fresh_value" "${DESERIALIZED_ARGS[0]}"
 
+echo "[TEST] Happy Case (round-trip): Unprefixed common variable names (serialized_args, target_var) work safely"
+SERIALIZED_STRING=$(serialize_args "alpha" "beta")
+serialized_args=()
+deserialize_args serialized_args "$SERIALIZED_STRING"
+assert_test_equals "2" "${#serialized_args[@]}"
+assert_test_equals "alpha" "${serialized_args[0]}"
+assert_test_equals "beta" "${serialized_args[1]}"
+
+target_var=()
+deserialize_args target_var "$SERIALIZED_STRING"
+assert_test_equals "2" "${#target_var[@]}"
+assert_test_equals "alpha" "${target_var[0]}"
+assert_test_equals "beta" "${target_var[1]}"
+
 # 3. Corner Conditions
 echo "[TEST] Corner Condition (serialize_args): Zero arguments returns empty output and exits 0"
 RESULT=$(serialize_args)
@@ -136,6 +150,27 @@ fi
 echo "[TEST] Pre-condition (deserialize_args): Variable name with injection characters (Failure case expected)"
 if ( deserialize_args "ARR=(); echo pwned; X" "foo" > /dev/null 2>&1 ); then
     test_fail "Unexpected Success (Test Failed: Should have rejected invalid variable identifier)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+echo "[TEST] Pre-condition (deserialize_args): Collision with internal variable '__target_var' (Failure case expected)"
+if ( deserialize_args "__target_var" "foo" > /dev/null 2>&1 ); then
+    test_fail "Unexpected Success (Test Failed: Should have rejected reserved internal name '__target_var')"
+else
+    test_pass "Failure caught successfully."
+fi
+
+echo "[TEST] Pre-condition (deserialize_args): Collision with internal variable '__serialized_args' (Failure case expected)"
+if ( deserialize_args "__serialized_args" "foo" > /dev/null 2>&1 ); then
+    test_fail "Unexpected Success (Test Failed: Should have rejected reserved internal name '__serialized_args')"
+else
+    test_pass "Failure caught successfully."
+fi
+
+echo "[TEST] Pre-condition (deserialize_args): Collision with internal variable '__element_count' (Failure case expected)"
+if ( deserialize_args "__element_count" "foo" > /dev/null 2>&1 ); then
+    test_fail "Unexpected Success (Test Failed: Should have rejected reserved internal name '__element_count')"
 else
     test_pass "Failure caught successfully."
 fi

@@ -98,6 +98,11 @@ serialize_args() {
 # ------------------------------------------------------------------------
 deserialize_args() {
     assert_argc 2 $#
+
+    # Prefix internal locals with '__' to avoid Bash dynamic-scoping collisions:
+    # if a caller passes a target variable name matching an internal local,
+    # eval would overwrite our local variable instead of the caller's array.
+    # The double underscore reduces the liklihood of that scenario occurring.
     local __target_var="$1"
     local __serialized_args="$2"
 
@@ -109,6 +114,10 @@ deserialize_args() {
     # Prevent variable-name injection: ensure $1 is a valid Bash identifier
     assert_true "target_var must be a valid Bash variable name" \
         bash -c '[[ "$1" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]' _ "$__target_var"
+
+    # Prevent dynamic-scoping collisions with internal local variables
+    assert_true "target_var cannot match internal deserialize_args local variable names" \
+        bash -c '[[ "$1" != "__target_var" && "$1" != "__serialized_args" && "$1" != "__element_count" ]]' _ "$__target_var"
 
     # ---------------
     # IMPLEMENTATION
