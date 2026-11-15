@@ -54,11 +54,12 @@ _cpanel_build_base_url() {
     printf '%s' "$base_url"
 }
 
-# Inspects a cPanel UAPI JSON response for application-level errors ("status": 0)
+# Inspects a cPanel UAPI JSON response for structural validity and application-level errors
 _cpanel_check_response() {
+    assert_cmds jq
+    assert_argc 1 $#
     local response="$1"
 
-    assert_min_argc 1 $#
     log_verbose "Inspecting cPanel UAPI response payload (${#response} bytes)"
 
     if [[ -z "$response" ]]; then
@@ -66,14 +67,51 @@ _cpanel_check_response() {
         return 1
     fi
 
-    if [[ "$response" =~ \"status\"[[:space:]]*:[[:space:]]*0([^0-9]|$) ]]; then
-        log_err "cPanel UAPI reported application error (status: 0)."
+    # 1. Verify the response is valid JSON before querying fields
+    if ! printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
+        log_err "cPanel UAPI returned non-JSON or malformed JSON response."
         log_err "Response payload: $response"
         return 1
     fi
 
-    if [[ ! "$response" =~ \"status\"[[:space:]]*:[[:space:]]*1([^0-9]|$) ]]; then
-        log_err "cPanel UAPI returned unexpected response format (missing 'status': 1)."
+    # 2. Verify the JSON conforms to the cPanel UAPI response envelope contract
+    local schema_error
+    schema_error="$(printf '%s' "$response" | jq -r '
+        if type != "object" then
+            "root JSON value must be an object (got \(type))"
+        elif (has("status") | not) or ((.status | type) != "number") then
+            "missing or non-numeric '\''status'\'' field"
+        elif (has("errors") | not) then
+            "missing required '\''errors'\'' field"
+        elif ((.errors | type) != "null") and ((.errors | type) != "array") then
+            "invalid '\''errors'\'' field type (expected null or array, got \(.errors | type))"
+        elif (has("data") | not) then
+            "missing required '\''data'\'' field"
+        elif has("messages") and (((.messages | type) != "null") and ((.messages | type) != "array")) then
+            "invalid '\''messages'\'' field type (expected null or array, got \(.messages | type))"
+        else
+            "ok"
+        end
+    ')"
+
+    if [[ "$schema_error" != "ok" ]]; then
+        log_err "cPanel UAPI response schema violation: ${schema_error}."
+        log_err "Response payload: $response"
+        return 1
+    fi
+
+    # 3. Check for explicit cPanel application-level error (.status == 0)
+    if printf '%s' "$response" | jq -e '.status == 0' >/dev/null 2>&1; then
+        local api_errors
+        api_errors="$(printf '%s' "$response" | jq -r '(.errors // []) | join("; ")')"
+        log_err "cPanel UAPI reported application error (status: 0): ${api_errors:-<no error details>}"
+        log_err "Response payload: $response"
+        return 1
+    fi
+
+    # 4. Verify valid UAPI success status (.status == 1)
+    if ! printf '%s' "$response" | jq -e '.status == 1' >/dev/null 2>&1; then
+        log_err "cPanel UAPI returned unexpected status value (expected .status == 1)."
         log_err "Response payload: $response"
         return 1
     fi
