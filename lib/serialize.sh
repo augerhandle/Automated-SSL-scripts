@@ -61,7 +61,7 @@ source "${_DAH_SERIALIZE_SH_LIB_DIR}/assert.sh"
 #   # => Authorization:\ cpanel\ user:token X-Custom:\ val
 # ------------------------------------------------------------------------
 serialize_args() {
-    log_verbose "Serializing $# argument(s)"
+    log_verbose "Serialized $# argument(s) (${#serialized_args} bytes)"
 
     # ---------------
     # IMPLEMENTATION
@@ -73,7 +73,7 @@ serialize_args() {
 
     local serialized_args
     serialized_args=$(printf '%q ' "$@")
-    log_verbose "serialized: ${serialized_args}"
+    log_verbose "Serialized $# argument(s) (${#serialized_args} bytes)"
 
     # ---------------
     # POST-CONDITIONS
@@ -106,7 +106,7 @@ deserialize_args() {
     local __target_var="$1"
     local __serialized_args="$2"
 
-    log_verbose "deserializing into '${__target_var}': ${__serialized_args}"
+    log_verbose "Deserializing ${#__serialized_args} byte(s) into '${__target_var}'"
 
     # ---------------
     # PRE-CONDITIONS
