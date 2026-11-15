@@ -9,36 +9,49 @@
 # Internal Helpers
 # ------------------------------------------------------------------------
 
-# Validates required cPanel connection environment variables
+# Validates required and optional cPanel connection environment variables
 _cpanel_validate_env() {
+    log_verbose "Validating cPanel environment variables"
+
     assert_nonempty CPANEL_HOST
     assert_nonempty CPANEL_USER
     assert_nonempty CPANEL_TOKEN
+
+    local port="${CPANEL_PORT:-2083}"
+
+    log_verbose_vars CPANEL_HOST CPANEL_USER port
+    log_verbose_secret_vars CPANEL_TOKEN
 
     assert_not_regex "CPANEL_HOST must not contain whitespace" "$CPANEL_HOST" '[[:space:]]'
     assert_regex "CPANEL_HOST must be a valid hostname or http(s) URL" \
         "$CPANEL_HOST" '^(https?://)?[A-Za-z0-9.-]+(:[0-9]+)?(/.*)?$'
 
     assert_not_regex "CPANEL_USER must not contain whitespace or ':'" "$CPANEL_USER" '[[:space:]:]'
+    assert_regex "CPANEL_PORT must be numeric" "$port" '^[0-9]+$'
 
     # Keep CPANEL_TOKEN check manual so a malformed token is never printed by assert_not_regex
     if [[ "$CPANEL_TOKEN" =~ [[:space:]] ]]; then
         log_fatal "CPANEL_TOKEN must not contain whitespace"
     fi
+
+    log_verbose "cPanel environment validation passed"
 }
 
 # Builds the cPanel base URL (defaults to https://<CPANEL_HOST>:2083)
 _cpanel_build_base_url() {
     local host="$CPANEL_HOST"
     local port="${CPANEL_PORT:-2083}"
-
-    assert_regex "CPANEL_PORT must be numeric" "$port" '^[0-9]+$'
+    local base_url
 
     if [[ "$host" =~ ^https?:// ]] || [[ "$host" =~ :[0-9]+(/|$) ]]; then
-        printf '%s' "$host"
+        base_url="$host"
+        log_verbose "Using explicit scheme/port from CPANEL_HOST: $base_url"
     else
-        printf 'https://%s:%s' "$host" "$port"
+        base_url="https://${host}:${port}"
+        log_verbose "Built default cPanel base URL: $base_url"
     fi
+
+    printf '%s' "$base_url"
 }
 
 # Inspects a cPanel UAPI JSON response for application-level errors ("status": 0)
@@ -46,6 +59,7 @@ _cpanel_check_response() {
     local response="$1"
 
     assert_min_argc 1 $#
+    log_verbose "Inspecting cPanel UAPI response payload (${#response} bytes)"
 
     if [[ -z "$response" ]]; then
         log_err "cPanel UAPI returned an empty response body."
@@ -64,6 +78,7 @@ _cpanel_check_response() {
         return 1
     fi
 
+    log_verbose "cPanel UAPI response verified (status: 1)"
     return 0
 }
 

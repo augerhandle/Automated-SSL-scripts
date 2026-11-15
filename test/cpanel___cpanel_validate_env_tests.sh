@@ -29,6 +29,7 @@ echo "------------------------------------------------"
 # 1. Valid configurations
 test_header "_cpanel_validate_env (Success - standard hostname)"
 if (
+    unset CPANEL_PORT
     CPANEL_HOST="cpanel.example.com"
     CPANEL_USER="testuser"
     CPANEL_TOKEN="ABCDEF1234567890"
@@ -37,6 +38,19 @@ if (
     test_pass "Success"
 else
     test_fail "Unexpected failure on valid standard environment"
+fi
+
+test_header "_cpanel_validate_env (Success - valid custom CPANEL_PORT)"
+if (
+    CPANEL_HOST="cpanel.example.com"
+    CPANEL_PORT="2087"
+    CPANEL_USER="testuser"
+    CPANEL_TOKEN="ABCDEF1234567890"
+    _cpanel_validate_env
+); then
+    test_pass "Success"
+else
+    test_fail "Unexpected failure on valid custom CPANEL_PORT"
 fi
 
 test_header "_cpanel_validate_env (Success - host with https:// scheme and port)"
@@ -174,7 +188,34 @@ else
     test_pass "Failure caught successfully."
 fi
 
-# 5. Malformed CPANEL_TOKEN & secret leakage verification
+# 5. Malformed CPANEL_PORT
+test_header "_cpanel_validate_env (Failure expected - non-numeric CPANEL_PORT)"
+if (
+    CPANEL_HOST="cpanel.example.com"
+    CPANEL_PORT="abc"
+    CPANEL_USER="testuser"
+    CPANEL_TOKEN="ABCDEF1234567890"
+    _cpanel_validate_env
+); then
+    test_fail "Unexpected Success (Test Failed)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+test_header "_cpanel_validate_env (Failure expected - whitespace in CPANEL_PORT)"
+if (
+    CPANEL_HOST="cpanel.example.com"
+    CPANEL_PORT="2083 "
+    CPANEL_USER="testuser"
+    CPANEL_TOKEN="ABCDEF1234567890"
+    _cpanel_validate_env
+); then
+    test_fail "Unexpected Success (Test Failed)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+# 6. Malformed CPANEL_TOKEN & secret leakage verification
 test_header "_cpanel_validate_env (Failure expected - whitespace in CPANEL_TOKEN without leaking secret)"
 SECRET_CANARY="TOPSECRET_TOKEN_999"
 ERR_OUTPUT="$(

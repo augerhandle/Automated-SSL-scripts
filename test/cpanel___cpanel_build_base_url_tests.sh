@@ -91,29 +91,5 @@ else
     test_fail "Expected 'http://localhost:8080', got '$RESULT'"
 fi
 
-# 6. Non-numeric CPANEL_PORT failure
-test_header "_cpanel_build_base_url (Failure expected - non-numeric CPANEL_PORT)"
-if (
-    CPANEL_HOST="cpanel.example.com"
-    CPANEL_PORT="abc"
-    _cpanel_build_base_url
-); then
-    test_fail "Unexpected Success (Test Failed)"
-else
-    test_pass "Failure caught successfully."
-fi
-
-# 7. Port with trailing whitespace failure
-test_header "_cpanel_build_base_url (Failure expected - whitespace in CPANEL_PORT)"
-if (
-    CPANEL_HOST="cpanel.example.com"
-    CPANEL_PORT="2083 "
-    _cpanel_build_base_url
-); then
-    test_fail "Unexpected Success (Test Failed)"
-else
-    test_pass "Failure caught successfully."
-fi
-
 echo "------------------------------------------------"
 echo "All _cpanel_build_base_url tests completed."
