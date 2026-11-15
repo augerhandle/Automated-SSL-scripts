@@ -157,5 +157,31 @@ assert_cmds() {
     done
 }
 
+# Asserts that a string matches a Bash extended regular expression.
+# Usage: assert_regex "Error message" "$value" '^[0-9]+$'
+assert_regex() {
+    assert_argc 3 $#
+    local msg="$1"
+    local value="$2"
+    local pattern="$3"
+
+    if ! [[ "$value" =~ $pattern ]]; then
+        log_fatal "Assertion failed: ${msg} (got: '${value}', expected pattern: '${pattern}')"
+    fi
+}
+
+# Asserts that a string does NOT match a Bash extended regular expression.
+# Usage: assert_not_regex "Error message" "$value" '[[:space:]]'
+assert_not_regex() {
+    assert_argc 3 $#
+    local msg="$1"
+    local value="$2"
+    local pattern="$3"
+
+    if [[ "$value" =~ $pattern ]]; then
+        log_fatal "Assertion failed: ${msg} (got: '${value}', disallowed pattern: '${pattern}')"
+    fi
+}
+
 # Set guard only after everything in the file loaded cleanly
 _DAH_ASSERT_SH=1

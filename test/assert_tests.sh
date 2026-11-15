@@ -106,5 +106,72 @@ else
     test_pass "Failure caught successfully."
 fi
 
+# 7. Test assert_regex
+test_header "assert_regex (Success case - numeric port)"
+assert_regex "Port must be numeric" "2083" '^[0-9]+$'
+test_pass "Success"
+
+test_header "assert_regex (Success case - valid UAPI module identifier)"
+assert_regex "Module must be alphanumeric/underscore" "DomainInfo_1" '^[A-Za-z0-9_]+$'
+test_pass "Success"
+
+test_header "assert_regex (Failure case expected - non-matching value)"
+if ( assert_regex "Port must be numeric" "2083abc" '^[0-9]+$' ); then
+    test_fail "Unexpected Success (Test Failed)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+test_header "assert_regex (Failure case expected - empty value against non-empty pattern)"
+if ( assert_regex "Value must be numeric" "" '^[0-9]+$' ); then
+    test_fail "Unexpected Success (Test Failed)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+test_header "assert_regex (Failure case expected - missing arguments)"
+if ( assert_regex "Only two args" "value" ); then
+    test_fail "Unexpected Success (Test Failed)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+# 8. Test assert_not_regex
+test_header "assert_not_regex (Success case - no whitespace in hostname)"
+assert_not_regex "Host must not contain whitespace" "cpanel.example.com" '[[:space:]]'
+test_pass "Success"
+
+test_header "assert_not_regex (Success case - empty string does not match disallowed pattern)"
+assert_not_regex "Empty string has no whitespace" "" '[[:space:]]'
+test_pass "Success"
+
+test_header "assert_not_regex (Failure case expected - space in value)"
+if ( assert_not_regex "Host must not contain whitespace" "cpanel.example .com" '[[:space:]]' ); then
+    test_fail "Unexpected Success (Test Failed)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+test_header "assert_not_regex (Failure case expected - tab/newline whitespace in value)"
+if ( assert_not_regex "Value must not contain whitespace" $'bad\tvalue' '[[:space:]]' ); then
+    test_fail "Unexpected Success (Test Failed)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+test_header "assert_not_regex (Failure case expected - colon in username)"
+if ( assert_not_regex "User must not contain whitespace or ':'" "user:name" '[[:space:]:]' ); then
+    test_fail "Unexpected Success (Test Failed)"
+else
+    test_pass "Failure caught successfully."
+fi
+
+test_header "assert_not_regex (Failure case expected - missing arguments)"
+if ( assert_not_regex "Only two args" "value" ); then
+    test_fail "Unexpected Success (Test Failed)"
+else
+    test_pass "Failure caught successfully."
+fi
+
 echo "------------------------------------------------"
 echo "All tests completed."
