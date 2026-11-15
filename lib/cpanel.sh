@@ -2,7 +2,7 @@
 
 # ========================================================================
 # cPanel UAPI Protocol Adapter
-# Dependencies: assert.sh, logging.sh, http.sh
+# Dependencies: assert.sh, logging.sh, http.sh, jq
 # ========================================================================
 
 # ------------------------------------------------------------------------
@@ -60,17 +60,17 @@ _cpanel_check_response() {
     assert_argc 1 $#
     local response="$1"
 
-    log_verbose "Inspecting cPanel UAPI response payload (${#response} bytes)"
+    log_verbose "Inspecting cPanel UAPI response (${#response} bytes)"
 
     if [[ -z "$response" ]]; then
-        log_err "cPanel UAPI returned an empty response body."
+        log_err "cPanel UAPI returned an empty response."
         return 1
     fi
 
     # 1. Verify the response is valid JSON before querying fields
     if ! printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
         log_err "cPanel UAPI returned non-JSON or malformed JSON response."
-        log_err "Response payload: $response"
+        log_err "Response: $response"
         return 1
     fi
 
@@ -96,7 +96,7 @@ _cpanel_check_response() {
 
     if [[ "$schema_error" != "ok" ]]; then
         log_err "cPanel UAPI response schema violation: ${schema_error}."
-        log_err "Response payload: $response"
+        log_err "Response: $response"
         return 1
     fi
 
@@ -105,14 +105,14 @@ _cpanel_check_response() {
         local api_errors
         api_errors="$(printf '%s' "$response" | jq -r '(.errors // []) | join("; ")')"
         log_err "cPanel UAPI reported application error (status: 0): ${api_errors:-<no error details>}"
-        log_err "Response payload: $response"
+        log_err "Response: $response"
         return 1
     fi
 
     # 4. Verify valid UAPI success status (.status == 1)
     if ! printf '%s' "$response" | jq -e '.status == 1' >/dev/null 2>&1; then
         log_err "cPanel UAPI returned unexpected status value (expected .status == 1)."
-        log_err "Response payload: $response"
+        log_err "Response: $response"
         return 1
     fi
 
@@ -138,7 +138,7 @@ _cpanel_check_response() {
 #   $2 - MODULE      (e.g., Email, Mysql, DomainInfo)
 #   $3 - FUNCTION    (e.g., list_pops, add_pop)
 #   $@ - Optional key=value parameters passed to send_http_request
-cpanel_uapi_request() {
+send_cpanel_uapi_request() {
     assert_min_argc 3 $#
 
     local http_method="$1"
@@ -155,6 +155,8 @@ cpanel_uapi_request() {
     assert_regex "MODULE must be a valid UAPI module identifier" "$module" '^[A-Za-z0-9_]+$'
     assert_regex "FUNCTION must be a valid UAPI function identifier" "$func" '^[A-Za-z0-9_]+$'
 
+    log_verbose "Starting cPanel UAPI request: ${http_method} ${module}/${func} ($# params)"
+
     _cpanel_validate_env
 
     local base_url
@@ -163,12 +165,11 @@ cpanel_uapi_request() {
     local endpoint="/execute/${module}/${func}"
     local auth_header="Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}"
 
-    log_verbose "cPanel UAPI Request: ${http_method} ${base_url}${endpoint}"
-    log_verbose_vars CPANEL_USER
-    log_verbose_secret_vars CPANEL_TOKEN
+    log_verbose "sending cPanel UAPI request: ${http_method} ${base_url}${endpoint}"
 
     local response
     if ! response="$(send_http_request "$http_method" "$base_url" "$endpoint" "$auth_header" "$@")"; then
+        log_verbose "cPanel UAPI request failed during HTTP transport"
         return 1
     fi
 
@@ -176,6 +177,7 @@ cpanel_uapi_request() {
         return 1
     fi
 
+    log_verbose "cPanel UAPI request succeeded: ${module}/${func}"
     printf '%s\n' "$response"
     return 0
 }
