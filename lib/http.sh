@@ -46,23 +46,18 @@ build_url() {
     # ---------------
     # PRE-CONDITIONS
     # ---------------
-    # base_url must be 
-    # - non-empty, 
-    # - whitespace-free, and 
-    # - contain a valid host segment with an optional http:// or https:// scheme 
+    # base_url must be:
+    # - non-empty,
+    # - whitespace-free, and
+    # - contain a valid host segment with an optional http:// or https:// scheme
     #   (so it rejects "", "http://", "https://", "/")
-    assert_true "base_url must be a valid host with optional http(s):// scheme and no whitespace" \
-        bash -c '
-            url="$1"
-            if [[ "$url" =~ ^https?:// ]]; then
-                [[ "$url" =~ ^https?://[^/[:space:]]+(/[^[:space:]]*)?$ ]]
-            else
-                [[ "$url" =~ ^[^/:[:space:]]+(:[0-9]+)?(/[^[:space:]]*)?$ ]]
-            fi
-        ' _ "$base_url"
+    assert_nonempty base_url
+    assert_not_regex "base_url must not contain whitespace" "$base_url" '[[:space:]]'
+    assert_regex "base_url must be a valid host with optional http(s):// scheme" \
+        "$base_url" '^(https?://[^/[:space:]]+(/[^[:space:]]*)?|[^/:[:space:]]+(:[0-9]+)?(/[^[:space:]]*)?)$'
 
-    # - endpoint may be empty, but must not contain whitespace
-    assert_true "endpoint must not contain whitespace" test -z "${endpoint//[^[:space:]]/}"
+    # endpoint may be empty, but must not contain whitespace
+    assert_not_regex "endpoint must not contain whitespace" "$endpoint" '[[:space:]]'
 
     # ---------------
     # IMPLEMENTATION
@@ -84,8 +79,8 @@ build_url() {
     # POST-CONDITIONS
     # ---------------
     assert_nonempty full_url
-    assert_true "full_url must be a valid http(s) URL with host and no whitespace" \
-        bash -c '[[ "$1" =~ ^https?://[^/[:space:]]+/[^[:space:]]*$ ]]' _ "$full_url"
+    assert_regex "full_url must be a valid http(s) URL with host and no whitespace" \
+        "$full_url" '^https?://[^/[:space:]]+/[^[:space:]]*$'
 
     echo "${full_url}"
 }
@@ -110,10 +105,8 @@ build_curl_headers() {
     local header
     for header in "$@"; do
         assert_nonempty header
-        assert_true "header must not contain CR or LF characters" \
-            bash -c '[[ "$1" != *$'\''\n'\''* && "$1" != *$'\''\r'\''* ]]' _ "$header"
-        assert_true "header must match 'Name: Value' format" \
-            bash -c '[[ "$1" =~ ^[^:[:space:]]+: ]]' _ "$header"
+        assert_not_regex "header must not contain CR or LF characters" "$header" $'[\r\n]'
+        assert_regex "header must match 'Name: Value' format" "$header" '^[^:[:space:]]+:'
     done
 
     # ---------------
@@ -126,7 +119,11 @@ build_curl_headers() {
 
     local curl_header_args=()
     for header in "$@"; do
-        log_verbose_vars header
+        if [[ "$header" =~ ^[Aa]uthorization: ]]; then
+            log_verbose "header=Authorization: *****"
+        else
+            log_verbose_vars header
+        fi
         curl_header_args+=("-H" "${header}")
     done
 
@@ -155,8 +152,8 @@ build_curl_params() {
     local param
     for param in "$@"; do
         assert_nonempty param
-        assert_true "param must match 'key=value' format with a non-empty, whitespace-free key" \
-            bash -c '[[ "$1" =~ ^[^=[:space:]]+= ]]' _ "$param"
+        assert_regex "param must match 'key=value' format with a non-empty, whitespace-free key" \
+            "$param" '^[^=[:space:]]+='
     done
 
     # ---------------
@@ -210,7 +207,8 @@ send_http_request() {
     # Verify core variables are set
     assert_nonempty HTTP_METHOD
     assert_nonempty BASE_URL
-
+    assert_regex "HTTP_METHOD must be an uppercase standard HTTP verb (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)" \
+        "$HTTP_METHOD" '^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$'
     # --------------------------------------------------------------------------
     # 2. HTTP CONFIGURATION & SETUP
     # --------------------------------------------------------------------------
@@ -272,15 +270,12 @@ send_http_request() {
 
     if [[ ${#CURL_PARAMS[@]} -gt 0 ]]; then
         # For GET requests, instruct curl to append --data-urlencode items to the query string
-        case "$HTTP_METHOD" in
-            GET|get)
-                CURL_CMD+=("--get")
-                ;;
-        esac
+        if [[ "$HTTP_METHOD" == "GET" ]]; then
+            CURL_CMD+=("--get")
+        fi
         CURL_CMD+=("${CURL_PARAMS[@]}")
         log_verbose "Attaching ${#RAW_PARAMS[@]} URL-encoded parameter(s)"
     fi
-
     CURL_CMD+=("$FULL_URL")
 
     # Execute curl and capture the HTTP status code written to stdout
